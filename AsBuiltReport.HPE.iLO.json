@@ -5,7 +5,11 @@
         "Status": "Released"
     },
     "Options": {
-        "ShowLicenseKeys": false
+        "ShowEmptyDIMMSlots": true,
+		"ShowLicenseKeys": false,
+        "ShowTemperatureAs": "Celsius",
+			"_ShowTempAs_Options_": "Celsius,Fahrenheit",
+		"VerboseLogging": false
     },
     "Section": {
     },
