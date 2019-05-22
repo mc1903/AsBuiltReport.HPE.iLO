@@ -5,7 +5,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
     .DESCRIPTION
         Documents the Integrated Lights Out (iLO) configuration for a HPE ProLiant Server in Word/HTML/XML/Text formats using PScribo.
     .NOTES
-        Version:        0.0.8
+        Version:        0.0.10
         Author:         Martin Cooper
         Twitter:        @mc1903
         Github:         https://github.com/mc1903
@@ -134,7 +134,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
         # Run each HPEiLOCmdlet and create a varible for each 
         If ($HPEiLOConnection) {
             If ($Options.VerboseLogging) {
-                WriteLog -Message "Sucessfully Connected to $($HPEiLOConnection.Hostname)" -IsDebug -Plugin "Document"
+                WriteLog -Message "Sucessfully Connected to $($HPEiLOConnection.IP)" -IsDebug -Plugin "Document"
                 WriteLog -Message "iLO Generation is $($HPEiLOConnection.iLOGeneration)" -IsDebug -Plugin "Document"
                 WriteLog -Message "Server Model is $($HPEiLOConnection.ServerFamily) $($HPEiLOConnection.ServerModel) $($HPEiLOConnection.ServerGeneration)" -IsDebug -Plugin "Document"
             }
@@ -173,8 +173,18 @@ function Invoke-AsBuiltReport.HPE.iLO {
             $HPEiLOHostDataBIOSInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object -Property StructureName -eq "BIOSInformation"
             $HPEiLOHostDataSystemInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object -Property StructureName -eq "SystemInformation"
 
+            # Set Hostname if no DNS name exists
+            if ($HPEiLOConnection.Hostname -eq $null)
+            {
+                $HPEiLoHostName = "ILO$($HPEiLOHostDataSystemInformation.SerialNumber)"
+            }
+            else
+            {
+                $HPEiLoHostName = $HPEiLOConnection.Hostname
+            }
 
-            Section -Style Heading1 $HPEiLOServerInfo.Hostname {
+
+            Section -Style Heading1 $HPEiLoHostName {
                 Section -Style Heading2 'Overview Information' {
                     Paragraph "The following section provides an overview of the HPE iLO."
                     BlankLine
@@ -192,7 +202,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         'iLO Generation' = $HPEiLOConnection.iLOGeneration
                         'Firmware Version' = $HPEiLOConnection.iLOFirmwareVersion
                         'IP Address' = $HPEiLOConnection.IP
-                        'iLO Hostname' = $HPEiLOConnection.Hostname
+                        'iLO Hostname' = $HPEiLoHostName
                     }
                     $HPEiLOSummaryTable | Table -Name 'System Summary' -List -ColumnWidths 40,60 -Width 100
                     BlankLine
@@ -203,7 +213,10 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     BlankLine
                     $HPEiLOHealthSummaryTable = [PSCustomObject] @{
                         'BIOS/Hardware Health' = $HPEiLOHealthSummary.BIOSHardwareStatus
-                        'Fan Redundancy' = $HPEiLOHealthSummary.FanRedundancy
+                        'Fan Redundancy' = Switch ($HPEiLOHealthSummary.FanRedundancy) {
+                            {$_ -eq $null}  {"N/A"}
+                            Default  {$HPEiLOHealthSummary.FanRedundancy}
+                            }
                         'Fans' = $HPEiLOHealthSummary.FanStatus
                         'Memory' = $HPEiLOHealthSummary.MemoryStatus
                         'Network' = $HPEiLOHealthSummary.NetworkStatus
@@ -221,7 +234,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                 Section -Style Heading2 'Fan Information' {
                     Paragraph "The following section provides a summary of the Fan Subsystem"
                     BlankLine
-                    $HPEiLOFanSummaryTable = ForEach ($HPEiLOFan in $($HPEiLOFan.Fans)) {
+                    $HPEiLOFanSummaryTable = ForEach ($HPEiLOFan in $($HPEiLOFan.Fans) | Where-Object -Property State -ne "Absent") {
                         [PSCustomObject] @{
                             'Name' = $HPEiLOFan.Name
                             'Location' = $HPEiLOFan.Location
@@ -229,7 +242,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Status' = $HPEiLOFan.State
                         }
                     }
-                    $HPEiLOFanSummaryTable | Sort-Object -Property Id | Table -Name 'Fan Information' -ColumnWidths 25,25,25,25 -Width 100
+                    $HPEiLOFanSummaryTable | Sort-Object -Property 'Name' | Table -Name 'Fan Information' -ColumnWidths 25,25,25,25 -Width 100
                     BlankLine
                 }#End Section Heading2 Fan Information
 
@@ -253,7 +266,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                                     }
                             }
                         }
-                        $HPEiLOTempSummaryTable | Sort-Object -Property Sensor | Where-Object -Property Status -eq "OK" | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
+                        $HPEiLOTempSummaryTable | Sort-Object -Property 'Sensor' | Where-Object -Property Status -eq "OK" | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
                         BlankLine
                     }
                     ElseIf ($Options.ShowTemperatureAs -eq "Fahrenheit") {
@@ -456,7 +469,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
 ##TODO - System Information - Device Inventory (Need iLO5)
 
                 Section -Style Heading2 'Storage Information' {
-                    Paragraph "The following section provides a summary of the Storage Controllers -V2"
+                    Paragraph "The following section provides a summary of the Storage Controllers"
                     BlankLine
 
                     $HPEiLOSmartArrayStorageControllers = $HPEiLOSmartArrayStorageController.Controllers
@@ -473,7 +486,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Status' = $HPEiLOSmartArrayStorageControllerID.State
                         }
                     }
-                    $HPEiLOSmartArrayStorageControllerSummaryTable | Table -Name 'Storage Controller Summary' -ColumnWidths 40,20,20,20 -Width 100
+                    $HPEiLOSmartArrayStorageControllerSummaryTable | Sort-Object -Property Location| Table -Name 'Storage Controller Summary' -ColumnWidths 40,20,20,20 -Width 100
                     BlankLine
                     
                     Paragraph "The following section provides a summary of the Physical Disks"
@@ -506,62 +519,53 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         }
 
                     }
-
-
                     $HPEiLOSmartArrayStorageControllerPDSummaryTable | Sort-Object -Property Id | Table -Name 'Physical Disk Summary' -ColumnWidths 7,9,8,8,8,8,10,10,8,16,8 -Width 100
                     BlankLine
 
+                    Paragraph "The following section provides a summary of the Logical Disks"
+                    BlankLine
 
-
-
-
-
-
-
-
-
-
+                    $HPEiLOSmartArrayStorageControllerLDSummaryTable = ForEach ($HPEiLOSmartArrayStorageControllersLDID in $HPEiLOSmartArrayStorageControllersLD) {
+                        [PSCustomObject] @{
+                            'Logical ID' = $($HPEiLOSmartArrayStorageControllersLDID.LogicalDriveNumber)
+                            'RAID Level' = Switch ($HPEiLOSmartArrayStorageControllersLDID.Raid) {
+                                '0' {"RAID 0"}
+                                '1' {"RAID 1"}
+                                '5' {"RAID 5"}
+                                '6' {"RAID 6"}
+                                '10' {"RAID 10"}
+                                Default {"N/A"}
+                                }
+                            'Volume ID' = $($HPEiLOSmartArrayStorageControllersLDID.VolumeUniqueIdentifier)
+                            'Capacity (GB)' = $([math]::Round([Int]$HPEiLOSmartArrayStorageControllersLDID.CapacityMib / 953.674))
+                            'Drive Location' = $($HPEiLOSmartArrayStorageControllersLDID.DataDrives.Location | Sort-Object) -Join ', '
+                            'Status' = $HPEiLOSmartArrayStorageControllersLDID.State 
+                            }
+                        }
+                    $HPEiLOSmartArrayStorageControllerLDSummaryTable | Sort-Object -Property 'Logical ID' | Table -Name 'Logical Disk Summary' -ColumnWidths 15,15,35,10,15,10 -Width 100
+                    BlankLine
                 }#End Section Heading2 Storage Information
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                Section -Style Heading2 'Firmware Information' {
+                    Paragraph "The following section provides a summary of the installed Firmware Versions"
+                    BlankLine
+                    $HPEiLOFirmwareInventory = Get-HPEiLOFirmwareInventory -Connection $HPEiLOConnection   
+                    $HPEiLOFirmwareInventorySummaryTable = ForEach ($HPEiLOFirmwareInventoryID in $($HPEiLOFirmwareInventory.FirmwareInformation)) {
+                        [PSCustomObject] @{
+                            'ID' = $($HPEiLOFirmwareInventoryID.Index)
+                            'Firmware Name' = $($HPEiLOFirmwareInventoryID.FirmwareName)
+                            'Firmware Version' = $($HPEiLOFirmwareInventoryID.FirmwareVersion)
+                            'Firmware Family' = $($HPEiLOFirmwareInventoryID.FirmwareFamily)
+                        }
+                    }
+                    $HPEiLOFirmwareInventorySummaryTable | Sort-Object -Property 'ID' | Table -Name 'Firmware Information'  -ColumnWidths 10,40,30,20 -Width 100
+                    BlankLine
+                }#End Section Heading2 Firmware Information
 
                 Section -Style Heading2 'iLO Event Log Summary' {
                     Paragraph "The following section provides a summary of the HPE iLO Event Log."
                     BlankLine
-                    $HPEiLOEventLogTotal = $HPEiLOEventLog.EventLog | Out-Null
+                    $HPEiLOEventLogTotal = $HPEiLOEventLog.EventLog
                     $HPEiLOEventLogInformational = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Informational"
                     $HPEiLOEventLogCaution = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Caution"
                     $HPEiLOEventLogCritical = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Critical"
@@ -571,7 +575,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         'Caution' = $HPEiLOEventLogCaution.Count
                         'Critical' = $HPEiLOEventLogCritical.Count
                         'Unknown' = $HPEiLOEventLogUnknown.Count
-                        'Total' = $HPEiLOEventLog.EventLog.Count
+                        'Total' = $HPEiLOEventLogTotal.Count
                     }                    
                     $HPEiLOELSummaryTable | Table -Name 'iLO Event Log Summary' -List -ColumnWidths 50,50 -Width 50
                     BlankLine

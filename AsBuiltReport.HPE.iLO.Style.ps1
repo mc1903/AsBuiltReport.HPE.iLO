@@ -11,23 +11,23 @@ Style -Name 'Heading 1' -Size 16 -Color '007CBB'
 Style -Name 'Heading 2' -Size 14 -Color '007CBB' 
 Style -Name 'Heading 3' -Size 12 -Color '007CBB' 
 Style -Name 'Heading 4' -Size 11 -Color '007CBB' 
-Style -Name 'Heading 5' -Size 10 -Color '007CBB'
+Style -Name 'Heading 5' -Size 11 -Color '007CBB' -Italic
 Style -Name 'H1 Exclude TOC' -Size 16 -Color '007CBB' 
-Style -Name 'Normal' -Size 10 -Color '565656' -Default
+Style -Name 'Normal' -Size 11 -Color '565656' -Default
 Style -Name 'TOC' -Size 16 -Color '007CBB' 
-Style -Name 'TableDefaultHeading' -Size 10 -Color 'FAF7EE' -BackgroundColor '002538' 
-Style -Name 'TableDefaultRow' -Size 10 
-Style -Name 'TableDefaultAltRow' -Size 10 -BackgroundColor 'D9E4EA' 
-Style -Name 'Critical' -Size 10 -BackgroundColor 'FFB38F'
-Style -Name 'Warning' -Size 10 -BackgroundColor 'FFE860'
-Style -Name 'Info' -Size 10 -BackgroundColor 'A6D8E7'
-Style -Name 'OK' -Size 10 -BackgroundColor 'AADB1E'
+Style -Name 'TableDefaultHeading' -Size 11 -Color 'FAF7EE' -BackgroundColor '002538' 
+Style -Name 'TableDefaultRow' -Size 11 
+Style -Name 'TableDefaultAltRow' -Size 11 -BackgroundColor 'D9E4EA' 
+Style -Name 'Critical' -Size 11 -BackgroundColor 'FFB38F'
+Style -Name 'Warning' -Size 11 -BackgroundColor 'FFE860'
+Style -Name 'Info' -Size 11 -BackgroundColor 'A6D8E7'
+Style -Name 'OK' -Size 11 -BackgroundColor 'AADB1E'
 
 # Configure Table Styles
 TableStyle -Id 'TableDefault' -HeaderStyle 'TableDefaultHeading' -RowStyle 'TableDefaultRow' -AlternateRowStyle 'TableDefaultAltRow' -BorderColor '002538' -Align Left -BorderWidth 0.5 -Default
 TableStyle -Id 'Borderless' -BorderWidth 0
 
-# VMware Cover Page Layout
+# HPE iLO Cover Page Layout
 # Set position of report titles and information based on page orientation
 if ($Orientation -eq 'Portrait') {
     BlankLine -Count 11

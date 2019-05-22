@@ -12,7 +12,7 @@
 RootModule = 'AsBuiltReport.HPE.iLO.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.3'
+ModuleVersion = '0.0.10'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Desktop'
