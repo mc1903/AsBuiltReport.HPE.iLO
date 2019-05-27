@@ -5,7 +5,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
     .DESCRIPTION
         Documents the Integrated Lights Out (iLO) configuration for a HPE ProLiant Server in Word/HTML/XML/Text formats using PScribo.
     .NOTES
-        Version:        0.0.10
+        Version:        0.0.14
         Author:         Martin Cooper
         Twitter:        @mc1903
         Github:         https://github.com/mc1903
@@ -170,31 +170,33 @@ function Invoke-AsBuiltReport.HPE.iLO {
             }            
             # Create Additional Varibles            
             $HPEiLOHostData = Get-HPEiLOHostData -Connection $HPEiLOConnection | Read-HPEiLOSMBIOSRecord
-            $HPEiLOHostDataBIOSInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object -Property StructureName -eq "BIOSInformation"
-            $HPEiLOHostDataSystemInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object -Property StructureName -eq "SystemInformation"
+            $HPEiLOHostDataBIOSInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object {$_.StructureName -eq "BIOSInformation"}
+            $HPEiLOHostDataSystemInformation = $HPEiLOHostData.SMBIOSRecord | Where-Object {$_.StructureName -eq "SystemInformation"}
 
             # Set Hostname if no DNS name exists
-            if ($HPEiLOConnection.Hostname -eq $null)
-            {
-                $HPEiLoHostName = "ILO$($HPEiLOHostDataSystemInformation.SerialNumber)"
-            }
-            else
+            If ($HPEiLOConnection.Hostname)
             {
                 $HPEiLoHostName = $HPEiLOConnection.Hostname
             }
-
+            Else
+            {
+                $HPEiLoHostName = "ILO$($HPEiLOHostDataSystemInformation.SerialNumber)"
+            }
 
             Section -Style Heading1 $HPEiLoHostName {
                 Section -Style Heading2 'Overview Information' {
                     Paragraph "The following section provides an overview of the HPE iLO."
                     BlankLine
-                    $HPEiLOFirmwareInventoryPriSysROM = $HPEiLOFirmwareInventory.FirmwareInformation | Where-Object -Property FirmwareName -eq "System ROM"
-                    $HPEiLOFirmwareInventoryRedSysROM = $HPEiLOFirmwareInventory.FirmwareInformation | Where-Object -Property FirmwareName -eq "Redundant System ROM"
+                    $HPEiLOFirmwareInventoryPriSysROM = $HPEiLOFirmwareInventory.FirmwareInformation | Where-Object {$_.FirmwareName -eq "System ROM"}
+                    $HPEiLOFirmwareInventoryRedSysROM = $HPEiLOFirmwareInventory.FirmwareInformation | Where-Object {$_.FirmwareName -eq "Redundant System ROM"}
                     $HPEiLOSummaryTable = [PSCustomObject] @{
                         'Product Name' = $HPEiLOHostDataSystemInformation.ProductName
                         'UUID' = $HPEiLOHostDataSystemInformation.UUID
                         'Serial Number' = $HPEiLOHostDataSystemInformation.SerialNumber
-                        'Asset Tag' = $HPEiLOAssetTag.AssetTag
+                        'Asset Tag' = Switch ($HPEiLOAssetTag.AssetTag) {
+                           {$_ -eq ""} {"N/A"}
+                            Default {$HPEiLOAssetTag.AssetTag}
+                            } 
                         'Product ID' = $HPEiLOHostDataSystemInformation.SKUNumber
                         'Primary System ROM' = $HPEiLOFirmwareInventoryPriSysROM.FirmwareVersion
                         'Redundant System ROM' = $HPEiLOFirmwareInventoryRedSysROM.FirmwareVersion
@@ -214,8 +216,8 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     $HPEiLOHealthSummaryTable = [PSCustomObject] @{
                         'BIOS/Hardware Health' = $HPEiLOHealthSummary.BIOSHardwareStatus
                         'Fan Redundancy' = Switch ($HPEiLOHealthSummary.FanRedundancy) {
-                            {$_ -eq $null}  {"N/A"}
-                            Default  {$HPEiLOHealthSummary.FanRedundancy}
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOHealthSummary.FanRedundancy}
                             }
                         'Fans' = $HPEiLOHealthSummary.FanStatus
                         'Memory' = $HPEiLOHealthSummary.MemoryStatus
@@ -234,7 +236,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                 Section -Style Heading2 'Fan Information' {
                     Paragraph "The following section provides a summary of the Fan Subsystem"
                     BlankLine
-                    $HPEiLOFanSummaryTable = ForEach ($HPEiLOFan in $($HPEiLOFan.Fans) | Where-Object -Property State -ne "Absent") {
+                    $HPEiLOFanSummaryTable = ForEach ($HPEiLOFan in $($HPEiLOFan.Fans) | Where-Object {$_.State -ne "Absent"}) {
                         [PSCustomObject] @{
                             'Name' = $HPEiLOFan.Name
                             'Location' = $HPEiLOFan.Location
@@ -242,7 +244,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Status' = $HPEiLOFan.State
                         }
                     }
-                    $HPEiLOFanSummaryTable | Sort-Object -Property 'Name' | Table -Name 'Fan Information' -ColumnWidths 25,25,25,25 -Width 100
+                    $HPEiLOFanSummaryTable | Sort-Object {$_.Name} | Table -Name 'Fan Information' -ColumnWidths 25,25,25,25 -Width 100
                     BlankLine
                 }#End Section Heading2 Fan Information
 
@@ -266,7 +268,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                                     }
                             }
                         }
-                        $HPEiLOTempSummaryTable | Sort-Object -Property 'Sensor' | Where-Object -Property Status -eq "OK" | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
+                        $HPEiLOTempSummaryTable | Sort-Object {$_.Sensor} | Where-Object {$_.Status -eq "OK"} | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
                         BlankLine
                     }
                     ElseIf ($Options.ShowTemperatureAs -eq "Fahrenheit") {
@@ -286,7 +288,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                                     }
                             }
                         }
-                        $HPEiLOTempSummaryTable | Sort-Object -Property Sensor | Where-Object -Property Status -eq "OK" | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
+                        $HPEiLOTempSummaryTable | Sort-Object {$_.Sensor} | Where-Object {$_.Status -eq "OK"} | Table -Name 'Temperature Information' -ColumnWidths 26,26,12,12,12,12 -Width 100
                         BlankLine
                     }
                     Else { 
@@ -326,7 +328,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Firmware Version' = $HPEiLOPSU.FirmwareVersion
                         }
                     }
-                    $HPEiLOPowerSupplyUnitSummaryTable | Sort-Object -Property Name | Table -Name 'Power Supply Units' -List -ColumnWidths 50,50 -Width 50
+                    $HPEiLOPowerSupplyUnitSummaryTable | Sort-Object {$_.Name} | Table -Name 'Power Supply Units' -List -ColumnWidths 50,50 -Width 50
                     BlankLine
 
                     If ($HPEiLOSmartStorageBattery.SmartStorageBattery) {
@@ -344,7 +346,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                                 'Firmware Version' = $HPEiLOSSB.FirmwareVersion
                             }
                         }
-                        $HPEiLOSmartStorageBatterySummaryTable | Sort-Object -Property Name | Table -Name 'Smart Storage Batteries' -List -ColumnWidths 50,50 -Width 50
+                        $HPEiLOSmartStorageBatterySummaryTable | Sort-Object {$_.Name} | Table -Name 'Smart Storage Batteries' -List -ColumnWidths 50,50 -Width 50
                         BlankLine
                     }
                 }#End Section Heading2 Power Information
@@ -364,7 +366,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Total Threads' = $HPEiLOCPU.TotalThreads
                         }
                     }
-                    $HPEiLOProcessorSummaryTable  | Sort-Object -Property Socket | Sort-Object -Property Socket | Table -Name 'Processor Information' -List -ColumnWidths 25,75 -Width 100
+                    $HPEiLOProcessorSummaryTable  | Sort-Object {$_.Socket} | Table -Name 'Processor Information' -List -ColumnWidths 25,75 -Width 100
                     BlankLine
                 }#End Section Heading2 Processor Information
 
@@ -389,7 +391,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         $HPEiLOMemorySlotInfo = $HPEiLOMemoryInfo.MemoryDetails.MemoryData
                         }
                     Else {
-                        $HPEiLOMemorySlotInfo = $HPEiLOMemoryInfo.MemoryDetails.MemoryData | Where-Object -Property DIMMStatus -ne "NotPresent"
+                        $HPEiLOMemorySlotInfo = $HPEiLOMemoryInfo.MemoryDetails.MemoryData | Where-Object {$_.DIMMStatus -ne "NotPresent"}
                         }
                         $HPEiLOMemorySlotSummaryTable = ForEach ($HPEiLOMemorySlot in $HPEiLOMemorySlotInfo) {
                             [PSCustomObject] @{
@@ -413,7 +415,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                 Section -Style Heading2 'Network Information' {
                     Paragraph "The following section provides a summary of the iLo NIC Subsystem"
                     BlankLine
-                    $HPEiLONICInfoActivePort = $HPEiLONICInfo.EthernetInterface | Where-Object -Property Status -eq "OK"
+                    $HPEiLONICInfoActivePort = $HPEiLONICInfo.EthernetInterface | Where-Object {$_.Status -eq "OK"}
                         If ($HPEiLOIPv4NetworkSetting.InterfaceType -eq "Shared")
                         {
                             $HPEiLOIPv4NetworkDesc = "$($HPEiLOIPv4NetworkSetting.InterfaceType) on $($HPEiLOIPv4NetworkSetting.SNPNICSetting) Port $($HPEiLOIPv4NetworkSetting.SNPPort)"
@@ -486,7 +488,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                             'Status' = $HPEiLOSmartArrayStorageControllerID.State
                         }
                     }
-                    $HPEiLOSmartArrayStorageControllerSummaryTable | Sort-Object -Property Location| Table -Name 'Storage Controller Summary' -ColumnWidths 40,20,20,20 -Width 100
+                    $HPEiLOSmartArrayStorageControllerSummaryTable | Sort-Object {$_.Location} | Table -Name 'Storage Controller Summary' -ColumnWidths 40,20,20,20 -Width 100
                     BlankLine
                     
                     Paragraph "The following section provides a summary of the Physical Disks"
@@ -519,7 +521,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         }
 
                     }
-                    $HPEiLOSmartArrayStorageControllerPDSummaryTable | Sort-Object -Property Id | Table -Name 'Physical Disk Summary' -ColumnWidths 7,9,8,8,8,8,10,10,8,16,8 -Width 100
+                    $HPEiLOSmartArrayStorageControllerPDSummaryTable | Sort-Object {$_.ID} | Table -Name 'Physical Disk Summary' -ColumnWidths 7,9,8,8,8,8,10,10,8,16,8 -Width 100
                     BlankLine
 
                     Paragraph "The following section provides a summary of the Logical Disks"
@@ -562,46 +564,123 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     BlankLine
                 }#End Section Heading2 Firmware Information
 
-                Section -Style Heading2 'iLO Event Log Summary' {
+                Section -Style Heading2 'iLO Event Log' {
                     Paragraph "The following section provides a summary of the HPE iLO Event Log."
                     BlankLine
-                    $HPEiLOEventLogTotal = $HPEiLOEventLog.EventLog
-                    $HPEiLOEventLogInformational = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Informational"
-                    $HPEiLOEventLogCaution = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Caution"
-                    $HPEiLOEventLogCritical = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Critical"
-                    $HPEiLOEventLogUnknown = $HPEiLOEventLog.EventLog | Where-Object -Property Severity -eq "Unknown"
-                    $HPEiLOELSummaryTable = [PSCustomObject] @{
+                    $HPEiLOEventLogAll = $HPEiLOEventLog.EventLog
+                    $HPEiLOEventLogInformational = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Informational"}
+                    $HPEiLOEventLogCaution = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Caution"}
+                    $HPEiLOEventLogCritical = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Critical"}
+                    $HPEiLOEventLogUnknown = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Unknown"}
+                   
+                    $HPEiLOEventLogSummaryTable = [PSCustomObject] @{
                         'Informational' = $HPEiLOEventLogInformational.Count
                         'Caution' = $HPEiLOEventLogCaution.Count
                         'Critical' = $HPEiLOEventLogCritical.Count
                         'Unknown' = $HPEiLOEventLogUnknown.Count
-                        'Total' = $HPEiLOEventLogTotal.Count
-                    }                    
-                    $HPEiLOELSummaryTable | Table -Name 'iLO Event Log Summary' -List -ColumnWidths 50,50 -Width 50
+                        'Total' = $HPEiLOEventLogAll.Count
+                    }                  
+                    $HPEiLOEventLogSummaryTable | Table -Name 'iLO Event Log Summary' -List -ColumnWidths 50,50 -Width 50
                     BlankLine
                 }#End Section Heading2 iLO Event Log Summary
+###
+                If ($Options.ShowEventLogDetail -gt 0) {
+                    Paragraph "The following section provides the detailed HPE iLO Event Logs."
+                    BlankLine
 
-                Section -Style Heading2 'iLO Integrated Management Log Summary' {
+                        If ($Options.ShowEventLogDetail -eq 1) {
+                            $HPEiLOEventLogDetails = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Critical"} | Sort-Object {$_.Created} -Descending
+                        }
+                        ElseIf ($Options.ShowEventLogDetail -eq 2) {
+                            $HPEiLOEventLogDetails = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Critical" -or $_.Severity -eq "Caution"} | Sort-Object {$_.Created} -Descending
+                        }
+                        ElseIf ($Options.ShowEventLogDetail -eq 3) {
+                            $HPEiLOEventLogDetails = $HPEiLOEventLog.EventLog | Where-Object {$_.Severity -eq "Critical" -or $_.Severity -eq "Caution" -or $_.Severity -eq "Informational"} | Sort-Object {$_.Created} -Descending
+                        }
+                        Else {
+                            $HPEiLOEventLogDetails = $HPEiLOEventLog.EventLog | Sort-Object {$_.Created} -Descending
+                        }
+
+                            $HPEiLOEventLogDetailTable = ForEach ($HPEiLOEventLogDetail in $HPEiLOEventLogDetails) {
+                                [PSCustomObject] @{
+                                    'Created' = $HPEiLOEventLogDetail.Created
+                                    'Severity' = $HPEiLOEventLogDetail.Severity
+                                    'Message' = $HPEiLOEventLogDetail.Message
+                                    'Source' = $HPEiLOEventLogDetail.Source
+                                    'Updated' = $HPEiLOEventLogDetail.Updated
+                                }
+                            }
+                            If ($HPEiLOEventLogDetailTable) {
+                                $HPEiLOEventLogDetailTable | Table -Name 'iLO Event Log Details' -ColumnWidths 12,12,56,8,12 -Width 100
+                            }
+                            Else {
+                                Paragraph -Style Warning "No Events Found"
+                            }
+
+                    BlankLine
+                }
+                #End Section Heading2 iLO Event Log Detail
+###
+                Section -Style Heading2 'iLO Integrated Management Log' {
                     Paragraph "The following section provides a summary of the HPE iLO Integrated Management Log (IML)."
                     BlankLine
-                    $HPEiLOIMLTotal = $HPEiLOIML.IMLLog
-                    $HPEiLOIMLInformational = $HPEiLOIML.IMLLog | Where-Object -Property Severity -eq "Informational"
-                    $HPEiLOIMLCaution = $HPEiLOIML.IMLLog | Where-Object -Property Severity -eq "Caution"
-                    $HPEiLOIMLCritical = $HPEiLOIML.IMLLog | Where-Object -Property Severity -eq "Critical"
-                    $HPEiLOIMLRepaired = $HPEiLOIML.IMLLog | Where-Object -Property Severity -eq "Repaired"
-                    $HPEiLOIMLUnknown = $HPEiLOIML.IMLLog | Where-Object -Property Severity -eq "Unknown"
+                    $HPEiLOIMLAll = $HPEiLOIML.IMLLog
+                    $HPEiLOIMLInformational = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Informational"}
+                    $HPEiLOIMLCaution = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Caution"}
+                    $HPEiLOIMLCritical = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Critical"}
+                    $HPEiLOIMLRepaired = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Repaired"}
+                    $HPEiLOIMLUnknown = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Unknown"}
+                    
                     $HPEiLOIMLSummaryTable = [PSCustomObject] @{
                         'Informational' = $HPEiLOIMLInformational.Count
                         'Caution' = $HPEiLOIMLCaution.Count
                         'Critical' = $HPEiLOIMLCritical.Count
                         'Repaired' = $HPEiLOIMLRepaired.Count
                         'Unknown' = $HPEiLOIMLUnknown.Count
-                        'Total' = $HPEiLOIMLTotal.Count
+                        'Total' = $HPEiLOIMLAll.Count
                     }                   
                     $HPEiLOIMLSummaryTable | Table -Name 'iLO Integrated Management Log Summary' -List -ColumnWidths 50,50 -Width 50
                     BlankLine
                 }#End Section Heading2 iLO Integrated Management Log Summary
 
+###
+                If ($Options.ShowIMLDetail -gt 0) {
+                    Paragraph "The following section provides the detailed HPE iLO Integrated Management Log (IML) Logs."
+                    BlankLine
+
+                        If ($Options.ShowIMLDetail -eq 1) {
+                            $HPEiLOIMLDetails = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Critical"} | Sort-Object {$_.Created} -Descending
+                        }
+                        ElseIf ($Options.ShowIMLDetail -eq 2) {
+                            $HPEiLOIMLDetails = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Critical" -or $_.Severity -eq "Caution"} | Sort-Object {$_.Created} -Descending
+                        }
+                        ElseIf ($Options.ShowIMLDetail -eq 3) {
+                            $HPEiLOIMLDetails = $HPEiLOIML.IMLLog | Where-Object {$_.Severity -eq "Critical" -or $_.Severity -eq "Caution" -or $_.Severity -eq "Informational"} | Sort-Object {$_.Created} -Descending
+                        }
+                        Else {
+                            $HPEiLOIMLDetails = $HPEiLOIML.IMLLog | Sort-Object {$_.Created} -Descending
+                        }
+
+                            $HPEiLOIMLDetailTable = ForEach ($HPEiLOIMLDetail in $HPEiLOIMLDetails) {
+                                [PSCustomObject] @{
+                                    'Created' = $HPEiLOIMLDetail.Created
+                                    'Severity' = $HPEiLOIMLDetail.Severity
+                                    'Message' = $HPEiLOIMLDetail.Message
+                                    'Source' = $HPEiLOIMLDetail.Source
+                                    'Updated' = $HPEiLOIMLDetail.Updated
+                                }
+                            }
+                            If ($HPEiLOIMLDetailTable) {
+                                $HPEiLOIMLDetailTable | Table -Name 'iLO Integrated Management Log Details' -ColumnWidths 12,12,52,12,12 -Width 100
+                            }
+                            Else {
+                                Paragraph -Style Warning "No Events Found"
+                            }                            
+             
+                    BlankLine
+                }
+
+###
 
 
 

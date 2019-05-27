@@ -9,7 +9,11 @@
 		"ShowLicenseKeys": false,
         "ShowTemperatureAs": "Celsius",
 			"_ShowTempAs_Options_": "Celsius,Fahrenheit",
-		"VerboseLogging": false
+		"VerboseLogging": false,
+        "ShowEventLogDetail": 5,
+            "_ShowEventLogDetail_Options_": "0 = Disabled, 1 = Critical, 2 = Caution, 3 = Informational, 5 = All",
+        "ShowIMLDetail": 5,
+            "_ShowIMLDetail_Options_": "0 = Disabled, 1 = Critical, 2 = Caution, 3 = Informational, 5 = All"
     },
     "Section": {
     },
