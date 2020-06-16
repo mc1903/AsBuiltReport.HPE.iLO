@@ -5,7 +5,7 @@ function Invoke-AsBuiltReport.HPE.iLO {
     .DESCRIPTION
         Documents the Integrated Lights Out (iLO) configuration for a HPE ProLiant Server in Word/HTML/XML/Text formats using PScribo.
     .NOTES
-        Version:        0.0.21
+        Version:        0.0.22
         Author:         Martin Cooper
         Twitter:        @mc1903
         Github:         https://github.com/mc1903
@@ -663,8 +663,8 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         'Primary System ROM' = $HPEiLOFirmwareInventoryPriSysROM.FirmwareVersion
                         'Redundant System ROM' = $HPEiLOFirmwareInventoryRedSysROM.FirmwareVersion
                         'License Type' = $HPEiLOLicense.License
-                        'iLO Generation' = $HPEiLOConnection.iLOGeneration
-                        'Firmware Version' = $HPEiLOConnection.iLOFirmwareVersion
+                        'iLO Generation' = $HPEiLOConnection.TargetInfo.iLOGeneration
+                        'Firmware Version' = $HPEiLOConnection.TargetInfo.iLOFirmwareVersion
                         'IP Address' = $HPEiLOConnection.IP
                         'iLO Hostname' = $HPEiLoHostName
                     }
@@ -685,7 +685,10 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         'Memory' = $HPEiLOHealthSummary.MemoryStatus
                         'Network' = $HPEiLOHealthSummary.NetworkStatus
                         'Power Status' = $HPEiLOHealthSummary.PowerSuppliesStatus
-                        'Power Supplies' = $HPEiLOHealthSummary.PowerSuppliesRedundancy
+                        'Power Supplies' = Switch ($HPEiLOHealthSummary.PowerSuppliesRedundancy) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOHealthSummary.PowerSuppliesRedundancy}
+                            }
                         'Processors' = $HPEiLOHealthSummary.ProcessorStatus
                         'Storage' = $HPEiLOHealthSummary.StorageStatus
                         'Smart Storage Battery Status' = $HPEiLOHealthSummary.BatteryStatus
@@ -765,11 +768,27 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     BlankLine
                     $HPEiLOPowerSupplySummary = $HPEiLOPowerSupply.PowerSupplySummary
                     $HPEiLOPowerSupplySummaryTable = [PSCustomObject] @{
-                        'Present Power Reading' = $HPEiLOPowerSupplySummary.PresentPowerReading
-                        'PMC Firmware Version' = $HPEiLOPowerSupplySummary.PowerManagementControllerFirmwareVersion
-                        'Power Status' = $HPEiLOPowerSupplySummary.PowerSystemRedundancy
-                        'Power Discovery Services Status' = $HPEiLOPowerSupplySummary.HPPowerDiscoveryServicesRedundancyStatus
-                        'High Efficiency Mode' = $HPEiLOPowerSupplySummary.HighEfficiencyMode
+                        'Present Power Reading' = Switch ($HPEiLOPowerSupplySummary.PresentPowerReading) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOPowerSupplySummary.PresentPowerReading}
+                            }
+                        'PMC Firmware Version' = Switch ($HPEiLOPowerSupplySummary.PowerManagementControllerFirmwareVersion) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOPowerSupplySummary.PowerManagementControllerFirmwareVersion}
+                            }
+                        'Power Status' = Switch ($HPEiLOPowerSupplySummary.PowerSystemRedundancy) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOPowerSupplySummary.PowerSystemRedundancy}
+                            }
+                        'Power Discovery Services Status' = Switch ($HPEiLOPowerSupplySummary.HPPowerDiscoveryServicesRedundancyStatus) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOPowerSupplySummary.HPPowerDiscoveryServicesRedundancyStatus}
+                            }
+    
+                        'High Efficiency Mode' = Switch ($HPEiLOPowerSupplySummary.HighEfficiencyModes) {
+                            {$_ -eq $null} {"N/A"}
+                            Default {$HPEiLOPowerSupplySummary.HighEfficiencyMode}
+                            }
                     }                   
                     $HPEiLOPowerSupplySummaryTable | Table -Name 'Power Information' -List -ColumnWidths 50,50 -Width 50
                     BlankLine
@@ -778,19 +797,53 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     BlankLine
                     $HPEiLOPowerSupplyUnitSummaryTable = ForEach ($HPEiLOPSU in $($HPEiLOPowerSupply.PowerSupplies)) {
                         [PSCustomObject] @{
-                            'Name' = $HPEiLOPSU.Label
-                            'Present' = $HPEiLOPSU.Present
-                            'Status' = $HPEiLOPSU.Status
-                            'PDS' = $HPEiLOPSU.PDS
-                            'Hot Plug' = $HPEiLOPSU.HotPlugCapable
-                            'Option P/N' = $HPEiLOPSU.Model
-                            'Spare P/N' = $HPEiLOPSU.SparePartNumber
-                            'Serial Number' = $HPEiLOPSU.SerialNumber
-                            'Capacity' = $HPEiLOPSU.Capacity
-                            'Firmware Version' = $HPEiLOPSU.FirmwareVersion
+                            'Id' = Switch ($HPEiLOPSU.Id) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.Id}
+                                }
+                            'Bay' = Switch ($HPEiLOPSU.BayNumber) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.BayNumber}
+                                }
+                            'Status' = Switch ($HPEiLOPSU.PowerSupplyStatus) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.PowerSupplyStatus}
+                                }
+                            'Hot Plug' = Switch ($HPEiLOPSU.HotPlugCapable) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.HotPlugCapable}
+                                }
+                            'Mismatched' = Switch ($HPEiLOPSU.Mismatched) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.Mismatched}
+                                }
+                            'Type' = Switch ($HPEiLOPSU.PowerSupplyType) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.PowerSupplyType}
+                                }
+                            'Capacity (Watts)' = Switch ($HPEiLOPSU.Capacity) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.Capacity}
+                                }
+                            'Option P/N' = Switch ($HPEiLOPSU.Model) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.Model}
+                                }
+                            'Spare P/N' = Switch ($HPEiLOPSU.SparePartNumber) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.SparePartNumber}
+                                }
+                            'Serial Number' = Switch ($HPEiLOPSU.SerialNumber) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.SerialNumber}
+                                }
+                            'Firmware Version' = Switch ($HPEiLOPSU.FirmwareVersion) {
+                                {$_ -eq $null} {"N/A"}
+                                Default {$HPEiLOPSU.FirmwareVersion}
+                                }
                         }
                     }
-                    $HPEiLOPowerSupplyUnitSummaryTable | Sort-Object {$_.Name} | Table -Name 'Power Supply Units' -List -ColumnWidths 50,50 -Width 50
+                    $HPEiLOPowerSupplyUnitSummaryTable | Sort-Object {$_.Id} | Table -Name 'Power Supply Units' -List -ColumnWidths 50,50 -Width 50
                     BlankLine
 
                     If ($HPEiLOSmartStorageBattery.SmartStorageBattery) {
@@ -798,14 +851,50 @@ function Invoke-AsBuiltReport.HPE.iLO {
                         BlankLine
                         $HPEiLOSmartStorageBatterySummaryTable = ForEach ($HPEiLOSSB in $($HPEiLOSmartStorageBattery.SmartStorageBattery)) {
                             [PSCustomObject] @{
-                                'Name' = $HPEiLOSSB.Label
-                                'Present' = $HPEiLOSSB.Present
-                                'Status' = $HPEiLOSSB.Status
-                                'Option P/N' = $HPEiLOSSB.Model
-                                'Spare P/N' = $HPEiLOSSB.SparePartNumber
-                                'Serial Number' = $HPEiLOSSB.SerialNumber
-                                'Capacity' = $HPEiLOSSB.Capacity
-                                'Firmware Version' = $HPEiLOSSB.FirmwareVersion
+                                'Name' = Switch ($HPEiLOSSB.ProductName) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.ProductName}
+                                    }
+                                'Status' = Switch ($HPEiLOSSB.Status.Health) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.Status.Health}
+                                    }
+                                'Capacity (Watts)' = Switch ($HPEiLOSSB.Capacity) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.Capacity}
+                                    }
+                                'Charge Level (%)' = Switch ($HPEiLOSSB.ChargeLevelPercent) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.ChargeLevelPercent}
+                                    }
+                                'Remaining Charge Time (Seconds)' = Switch ($HPEiLOSSB.RemainingChargeTimeSeconds) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.RemainingChargeTimeSeconds}
+                                    }
+                                'Battery Wear Level (%) ' = Switch ($HPEiLOSSB.BatteryWearLevelPercent) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.BatteryWearLevelPercent}
+                                    } 
+                                'Failure Predicted' = Switch ($HPEiLOSSB.FailurePredicted ) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.FailurePredicted }
+                                    } 
+                                'Option P/N' = Switch ($HPEiLOSSB.Model) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.Model}
+                                    }
+                                'Spare P/N' = Switch ($HPEiLOSSB.SparePartNumber) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.SparePartNumber}
+                                    }
+                                'Serial Number' = Switch ($HPEiLOSSB.SerialNumber) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.SerialNumber}
+                                    }
+                                'Firmware Version' = Switch ($HPEiLOSSB.FirmwareVersion) {
+                                    {$_ -eq $null} {"N/A"}
+                                    Default {$HPEiLOSSB.FirmwareVersion}
+                                    }
                             }
                         }
                         $HPEiLOSmartStorageBatterySummaryTable | Sort-Object {$_.Name} | Table -Name 'Smart Storage Batteries' -List -ColumnWidths 50,50 -Width 50
@@ -819,10 +908,10 @@ function Invoke-AsBuiltReport.HPE.iLO {
                     $HPEiLOProcessorSummaryTable = ForEach ($HPEiLOCPU in $($HPEiLOProcessor.Processor)) {
                         [PSCustomObject] @{
                             'Socket' = $HPEiLOCPU.Socket
-                            'Status' = $HPEiLOCPU.ProcessorStatus
+                            'Status' = $HPEiLOCPU.Status.Health
                             'Manufacturer' = $HPEiLOCPU.ManufacturerName
                             'Model' = $HPEiLOCPU.Model
-                            'Core Speed (MHz)' = $HPEiLOCPU.RatedSpeedMHz
+                            'Core Speed (GHz)' = [Math]::Round($HPEiLOCPU.RatedSpeedMHz/1000,2).ToString("0.00")
                             'Total Cores' = $HPEiLOCPU.TotalCores
                             'Enabled Cores' = $HPEiLOCPU.CoresEnabled
                             'Total Threads' = $HPEiLOCPU.TotalThreads
@@ -877,39 +966,40 @@ function Invoke-AsBuiltReport.HPE.iLO {
                 Section -Style Heading2 'Network Information' {
                     Paragraph "The following section provides a summary of the iLo NIC Subsystem"
                     BlankLine
-                    $HPEiLONICInfoActivePort = $HPEiLONICInfo.EthernetInterface | Where-Object {$_.Status -eq "OK"}
-                        If ($HPEiLOIPv4NetworkSetting.InterfaceType -eq "Shared")
+                    $HPEiLONICInfoActivePort = $HPEiLONICInfo.EthernetInterface | Where-Object -Property NICEnabled -eq "Yes"
+
+                        if ($HPEiLOIPv4NetworkSetting.InterfaceType -eq "Shared")
                         {
                             $HPEiLOIPv4NetworkDesc = "$($HPEiLOIPv4NetworkSetting.InterfaceType) on $($HPEiLOIPv4NetworkSetting.SNPNICSetting) Port $($HPEiLOIPv4NetworkSetting.SNPPort)"
                         }
-                        Else
+                        else
                         {
                             $HPEiLOIPv4NetworkDesc = "$($HPEiLOIPv4NetworkSetting.InterfaceType) iLO Port"
                         }
 
-                        If ($HPEiLOIPv4NetworkSetting.VLANEnabled -eq "Yes")
+                        if ($HPEiLOIPv4NetworkSetting.VLANEnabled -eq "Yes")
                         {
                             $HPEiLOIPv4VLANDesc = "$($HPEiLOIPv4NetworkSetting.VLANEnabled) on VLAN $($HPEiLOIPv4NetworkSetting.VLANID)"
                         }
-                        Else
+                        else
                         {
                             $HPEiLOIPv4VLANDesc = "$($HPEiLOIPv4NetworkSetting.VLANEnabled)"
                         }
+                        
+                        $HPEiLONICInfoSummaryTable += [PSCustomObject]@{
+                            'Description' = $HPEiLOIPv4NetworkDesc
+                            'Status' = $HPEiLONICInfoActivePort.Status.Health
+                            'MAC Address' = $HPEiLONICInfoActivePort.MACAddress
+                            'IP Address' = $HPEiLONICInfoActivePort.IPv4Address
+                            'VLAN Enabled' = $HPEiLOIPv4VLANDesc
+                        }
 
-                            $HPEiLONICInfoSummaryTable = [PSCustomObject]@{
-                                'Description' = $HPEiLOIPv4NetworkDesc
-                                'Location' = $HPEiLONICInfoActivePort.Location
-                                'Status' = $HPEiLONICInfoActivePort.Status
-                                'MAC Address' = $HPEiLONICInfoActivePort.MACAddress
-                                'IP Address' = $HPEiLONICInfoActivePort.IPAddress
-                                'VLAN Enabled' = $HPEiLOIPv4VLANDesc
-                            }
-                            $HPEiLONICInfoSummaryTable | Table -Name 'iLO Network Information' -List -ColumnWidths 50,50 -Width 50
+                        $HPEiLONICInfoSummaryTable | Table -Name 'iLO Network Information' -List -ColumnWidths 50,50 -Width 50
                             BlankLine
 
                         Paragraph "The following section provides a summary of the NICs"
                         BlankLine
-
+##WRONG NIC##
                         $HPEiLONICNetAdapters = $($HPEiLONICInfo.NetworkAdapter)
                         ForEach ($HPEiLONICNetAdapter in $HPEiLONICNetAdapters) {
                             $HPEiLONICNetAdapterPorts = $($HPEiLONICNetAdapter.Ports)
